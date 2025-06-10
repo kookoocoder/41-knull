@@ -2,10 +2,10 @@
   <img src="/favicon.ico" alt="logo" width="100" />
   <h1>RestoreAI</h1>
   <p>
-    <img src="https://img.shields.io/github/languages/code-size/kookoocoder/41-knull" alt="code size" />
+    <img src="https://img.shields.io/github/languages/code-size/rajofearth/img-resto" alt="code size" />
     <img src="https://img.shields.io/badge/Next.js-14.2.3-black?style=flat-square&logo=next.js" alt="Next.js" />
-    <a href="https://vercel.com/preetamgaikwad80085-gmailcoms-projects/41-knull">
-      <img src="https://vercelbadge.vercel.app/api/preetamgaikwad80085-gmailcoms-projects/41-knull" alt="Vercel" />
+    <a href="https://vercel.com/rajofearth/img-resto">
+      <img src="https://vercelbadge.vercel.app/api/rajofearth/img-resto" alt="Vercel" />
     </a>
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="license" />
   </p>
@@ -31,6 +31,10 @@ This is a Next.js application that allows users to restore old or damaged images
 *   Download the restored image.
 *   Responsive design for mobile and desktop.
 *   Dynamic background gradient extracted from the uploaded image.
+
+## How it works
+
+The application uses the [Replicate](https://replicate.com/) API to restore images. Specifically, it uses the [flux-kontext-apps/restore-image](https://replicate.com/flux-kontext-apps/restore-image) model. The Next.js application provides a user interface for uploading images and then calls the Replicate API to perform the restoration.
 
 ## Getting Started
 
@@ -84,8 +88,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Deployed Application
 
-You can access the deployed application at [https://41-knull.vercel.app/](https://41-knull.vercel.app/).
+You can access the deployed application at [https://restoreai.vercel.app/](https://restoreai.vercel.app/).
 
+## Author
+
+This project was created by [rajofearth](https://github.com/rajofearth).
 
 ## Contributing
 

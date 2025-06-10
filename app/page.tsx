@@ -138,6 +138,34 @@ export default function Home() {
     setBackgroundGradient("")
   }
 
+  const handleEdit = (imageDataUrl: string) => {
+    // Create a File object from the data URL for editing
+    fetch(imageDataUrl)
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], `restored_${originalImage?.file.name || 'image.jpg'}`, { type: blob.type })
+        const imageData: ImageData = {
+          file,
+          dataUrl: imageDataUrl,
+          source: "upload"
+        }
+        
+        // Navigate to edit page with the image data
+        router.push('/edit')
+        
+        // Store the image data in session storage for the edit page
+        sessionStorage.setItem('editImageData', JSON.stringify(imageData))
+      })
+      .catch(error => {
+        console.error('Error preparing image for editing:', error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to prepare image for editing. Please try again.",
+        })
+      })
+  }
+
   // Add viewport height fix for mobile browsers
   useEffect(() => {
     const setVh = () => {
@@ -205,6 +233,7 @@ export default function Home() {
                   restoredImage={restoredImage}
                   fileName={originalImage.file.name}
                   onReset={handleReset}
+                  onEdit={handleEdit}
                   isMobile={isMobile}
                 />
               )}

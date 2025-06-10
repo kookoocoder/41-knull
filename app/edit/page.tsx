@@ -41,6 +41,32 @@ export default function EditPage({ initialImage }: EditPageProps) {
   const isMobile = useMediaQuery("(max-width: 768px)")
   const router = useRouter()
 
+  // Check for stored image data from restoration page
+  useEffect(() => {
+    const storedImageData = sessionStorage.getItem('editImageData')
+    if (storedImageData) {
+      try {
+        const imageData = JSON.parse(storedImageData) as ImageData
+        setOriginalImage(imageData)
+        setEditState("editing")
+        
+        // Extract colors for background gradient
+        extractColors(imageData.dataUrl).then(colors => {
+          const gradient = `linear-gradient(135deg, ${colors[0]}15, ${colors[1]}10, ${colors[2]}05)`
+          setBackgroundGradient(gradient)
+        }).catch(error => {
+          console.error("Error extracting colors:", error)
+        })
+        
+        // Clear the stored data
+        sessionStorage.removeItem('editImageData')
+      } catch (error) {
+        console.error('Error parsing stored image data:', error)
+        sessionStorage.removeItem('editImageData')
+      }
+    }
+  }, [])
+
   const handleImageUpload = async (imageData: ImageData) => {
     setOriginalImage(imageData)
     setEditState("editing")
@@ -238,7 +264,6 @@ export default function EditPage({ initialImage }: EditPageProps) {
                     <CardContent>
                       <ImageUpload
                         onImageUpload={handleImageUpload}
-                        onRestore={undefined}
                         image={originalImage}
                         onReset={handleReset}
                         isMobile={isMobile}
