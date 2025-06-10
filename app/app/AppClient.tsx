@@ -320,10 +320,6 @@ export default function AppClient() {
                 <Wand2 className="mr-2 h-4 w-4" />
                 AI Processing
               </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center">
-                <BookMarked className="mr-2 h-4 w-4" />
-                Recent History
-              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="process" className="space-y-6">
@@ -471,66 +467,6 @@ export default function AppClient() {
               </AnimatePresence>
             </TabsContent>
             
-            <TabsContent value="history" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Your most recent AI transformations</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loadingRestorations ? (
-                    <div className="space-y-4">
-                      <Skeleton className="h-[200px] w-full rounded-lg" />
-                      <div className="flex justify-between">
-                        <Skeleton className="h-4 w-[100px]" />
-                        <Skeleton className="h-4 w-[60px]" />
-                      </div>
-                    </div>
-                  ) : restorations.length === 0 ? (
-                    <div className="text-center py-12 border rounded-lg border-dashed">
-                      <ImageOff className="mx-auto h-12 w-12 text-muted-foreground/60" />
-                      <h3 className="mt-4 text-lg font-medium">No activity yet</h3>
-                      <p className="text-muted-foreground mt-2 mb-6">
-                        You haven't processed any images yet. Start by uploading a photo.
-                      </p>
-                      <Button onClick={() => setActiveTab('process')}>
-                        <ImagePlus className="mr-2 h-4 w-4" />
-                        Start Processing
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <Carousel className="w-full">
-                        <CarouselContent>
-                          {restorations.slice(0, 5).map((restoration) => (
-                            <CarouselItem key={restoration.id} className="md:basis-1/2 lg:basis-1/3">
-                              <div className="p-1">
-                                <RestorationCard
-                                  original={restoration.original_url}
-                                  restored={restoration.restored_url}
-                                  date={restoration.created_at}
-                                />
-                              </div>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        <CarouselPrevious />
-                        <CarouselNext />
-                      </Carousel>
-                      
-                      <div className="flex justify-end mt-4">
-                        <Button asChild variant="outline" size="sm">
-                          <Link href="/app/library">
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            View All
-                          </Link>
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </motion.div>
       </div>
