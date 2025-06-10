@@ -2,22 +2,21 @@
 
 import { useState, useEffect } from "react"
 import { ImageUpload } from "@/components/image-upload"
-import { RestorationOverlay } from "@/components/restoration-overlay"
-import { ComparisonSlider } from "@/components/comparison-slider"
+import { EditingOverlay } from "@/components/editing-overlay"
+import { EditComparison } from "@/components/edit-comparison"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { HeroSection } from "@/components/hero-section"
-import { FeaturesSection } from "@/components/features-section"
 import { Toaster } from "@/components/ui/toaster"
 import { useToast } from "@/components/ui/use-toast"
 import { extractColors } from "@/lib/color-utils"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { ExampleImages } from "@/components/example-images"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Wand2, Sparkles, Upload } from "lucide-react"
+import { motion } from "framer-motion"
 
-export type AppState = "upload" | "processing" | "comparison"
+export type EditState = "upload" | "editing" | "comparison"
 
 export interface ImageData {
   file: File
@@ -26,19 +25,25 @@ export interface ImageData {
   source?: "upload" | "camera"
 }
 
-export default function Home() {
-  const [appState, setAppState] = useState<AppState>("upload")
-  const [originalImage, setOriginalImage] = useState<ImageData | null>(null)
-  const [restoredImage, setRestoredImage] = useState<string | null>(null)
+interface EditPageProps {
+  initialImage?: ImageData
+}
+
+export default function EditPage({ initialImage }: EditPageProps) {
+  const [editState, setEditState] = useState<EditState>(initialImage ? "editing" : "upload")
+  const [originalImage, setOriginalImage] = useState<ImageData | null>(initialImage || null)
+  const [editedImage, setEditedImage] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
   const [backgroundGradient, setBackgroundGradient] = useState<string>("")
   const [isLimitReached, setIsLimitReached] = useState(false)
+  const [currentPrompt, setCurrentPrompt] = useState<string>("")
   const { toast } = useToast()
   const isMobile = useMediaQuery("(max-width: 768px)")
   const router = useRouter()
 
   const handleImageUpload = async (imageData: ImageData) => {
     setOriginalImage(imageData)
+    setEditState("editing")
 
     // Extract colors for background gradient
     try {
@@ -50,7 +55,7 @@ export default function Home() {
     }
   }
 
-  const handleRestore = async () => {
+  const handleEdit = async (prompt: string) => {
     if (!originalImage) {
       toast({
         variant: "destructive",
@@ -60,9 +65,19 @@ export default function Home() {
       return
     }
 
-    setAppState("processing")
+    if (!prompt.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Prompt required",
+        description: "Please enter a description of how you want to edit the image.",
+      })
+      return
+    }
+
+    setCurrentPrompt(prompt)
+    setEditState("editing")
     setProgress(0)
-    setRestoredImage(null)
+    setEditedImage(null)
 
     // Simulate progress
     const progressInterval = setInterval(() => {
@@ -76,11 +91,12 @@ export default function Home() {
     }, 800)
 
     try {
-      const res = await fetch("/api/restore", {
+      const res = await fetch("/api/edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           inputImage: originalImage.dataUrl,
+          prompt: prompt.trim(),
         }),
       })
 
@@ -96,32 +112,32 @@ export default function Home() {
       }
 
       setProgress(100)
-      setRestoredImage(data.output)
+      setEditedImage(data.output)
 
-      // Update gradient with restored image colors
+      // Update gradient with edited image colors
       try {
-        const restoredColors = await extractColors(data.output)
-        const enhancedGradient = `linear-gradient(135deg, ${restoredColors[0]}20, ${restoredColors[1]}15, ${restoredColors[2]}10)`
+        const editedColors = await extractColors(data.output)
+        const enhancedGradient = `linear-gradient(135deg, ${editedColors[0]}20, ${editedColors[1]}15, ${editedColors[2]}10)`
         setBackgroundGradient(enhancedGradient)
       } catch (error) {
-        console.error("Error extracting restored image colors:", error)
+        console.error("Error extracting edited image colors:", error)
       }
 
       setTimeout(() => {
-        setAppState("comparison")
+        setEditState("comparison")
         toast({
-          title: "Restoration complete",
-          description: "Your image has been successfully restored.",
+          title: "Edit complete",
+          description: "Your image has been successfully edited.",
         })
       }, 1000)
     } catch (err) {
       console.error(err)
-      setAppState("upload")
+      setEditState("editing")
       
       if (!isLimitReached) {
         toast({
           variant: "destructive",
-          title: "Restoration failed",
+          title: "Edit failed",
           description: err instanceof Error ? err.message : "An unknown error occurred.",
         })
       }
@@ -131,11 +147,19 @@ export default function Home() {
   }
 
   const handleReset = () => {
-    setAppState("upload")
+    setEditState("upload")
     setOriginalImage(null)
-    setRestoredImage(null)
+    setEditedImage(null)
     setProgress(0)
     setBackgroundGradient("")
+    setCurrentPrompt("")
+  }
+
+  const handleNewEdit = () => {
+    setEditState("editing")
+    setEditedImage(null)
+    setProgress(0)
+    setCurrentPrompt("")
   }
 
   // Add viewport height fix for mobile browsers
@@ -157,8 +181,8 @@ export default function Home() {
           <AlertDialogHeader>
             <AlertDialogTitle>Anonymous Limit Reached</AlertDialogTitle>
             <AlertDialogDescription>
-              You've reached the maximum of 2 restorations allowed for anonymous users. 
-              Sign in to restore unlimited images and access your restoration history.
+              You've reached the maximum of 2 edits allowed for anonymous users. 
+              Sign in to edit unlimited images and access your edit history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -180,31 +204,70 @@ export default function Home() {
 
           <main className="flex-1 container py-6 md:py-12">
             <div className="max-w-4xl mx-auto space-y-8 md:space-y-12">
-              {appState === "upload" && (
+              {editState === "upload" && (
                 <>
-                  <HeroSection isMobile={isMobile} />
-                  <ImageUpload
-                    onImageUpload={handleImageUpload}
-                    onRestore={handleRestore}
-                    image={originalImage}
-                    onReset={handleReset}
-                    isMobile={isMobile}
-                  />
-                  <ExampleImages onSelectExample={handleImageUpload} isMobile={isMobile} />
-                  <FeaturesSection />
+                  <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="text-center space-y-4 md:space-y-6"
+                  >
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                      <div className="relative">
+                        <Wand2 className="h-8 w-8 md:h-10 md:w-10 text-primary animate-pulse" />
+                        <div className="absolute inset-0 h-8 w-8 md:h-10 md:w-10 text-primary/30 animate-ping">
+                          <Wand2 className="h-8 w-8 md:h-10 md:w-10" />
+                        </div>
+                      </div>
+                    </div>
+                    <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                      Edit Your Images with AI
+                    </h1>
+                    <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                      Transform your photos with natural language prompts. Upload an image and describe how you want it changed.
+                    </p>
+                  </motion.div>
+
+                  <Card className="border border-border/50 bg-card/50 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Upload className="h-5 w-5 text-primary" />
+                        Upload Image to Edit
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ImageUpload
+                        onImageUpload={handleImageUpload}
+                        onRestore={undefined}
+                        image={originalImage}
+                        onReset={handleReset}
+                        isMobile={isMobile}
+                        isEditMode={true}
+                      />
+                    </CardContent>
+                  </Card>
                 </>
               )}
 
-              {appState === "processing" && originalImage && (
-                <RestorationOverlay image={originalImage} progress={progress} />
+              {editState === "editing" && originalImage && (
+                <EditingOverlay 
+                  image={originalImage} 
+                  progress={progress} 
+                  onEdit={handleEdit}
+                  onReset={handleReset}
+                  isProcessing={progress > 0}
+                  isMobile={isMobile}
+                />
               )}
 
-              {appState === "comparison" && originalImage && restoredImage && (
-                <ComparisonSlider
+              {editState === "comparison" && originalImage && editedImage && (
+                <EditComparison
                   originalImage={originalImage.dataUrl}
-                  restoredImage={restoredImage}
+                  editedImage={editedImage}
                   fileName={originalImage.file.name}
+                  prompt={currentPrompt}
                   onReset={handleReset}
+                  onNewEdit={handleNewEdit}
                   isMobile={isMobile}
                 />
               )}
@@ -217,4 +280,4 @@ export default function Home() {
       </div>
     </>
   )
-}
+} 
