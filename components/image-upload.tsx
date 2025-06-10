@@ -18,9 +18,10 @@ interface ImageUploadProps {
   onReset: () => void
   isMobile: boolean
   isEditMode?: boolean
+  mode?: "restore" | "edit"
 }
 
-export function ImageUpload({ onImageUpload, onRestore, image, onReset, isMobile, isEditMode = false }: ImageUploadProps) {
+export function ImageUpload({ onImageUpload, onRestore, image, onReset, isMobile, isEditMode = false, mode = "restore" }: ImageUploadProps) {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<string>("upload")
 
@@ -76,10 +77,10 @@ export function ImageUpload({ onImageUpload, onRestore, image, onReset, isMobile
           <CardHeader>
             <CardTitle className="flex items-center">
               <Wand2 className="h-5 w-5 mr-2 text-primary" />
-              {isEditMode ? "Upload Image to Edit" : "Restore Your Image"}
+              {mode === "edit" ? "Upload Image to Edit" : "Restore Your Image"}
             </CardTitle>
             <CardDescription>
-              {isEditMode 
+              {mode === "edit" 
                 ? "Upload any image and transform it with AI-powered editing" 
                 : "Upload an old photo and our AI will restore it to look like new"
               }
@@ -210,7 +211,7 @@ export function ImageUpload({ onImageUpload, onRestore, image, onReset, isMobile
                   size={isMobile ? "default" : "lg"}
                 >
                   <Sparkles className="mr-2 h-4 w-4 md:h-5 md:w-5" />
-                  {isEditMode ? "Start Editing" : "Restore Image"}
+                  {mode === "edit" ? "Start Editing" : "Restore Image"}
                 </Button>
               </motion.div>
             )}

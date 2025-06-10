@@ -3,9 +3,7 @@
 import { useState, useEffect } from "react"
 import { ImageUpload } from "@/components/image-upload"
 import { RestorationOverlay } from "@/components/restoration-overlay"
-import { EditingOverlay } from "@/components/editing-overlay"
 import { ComparisonSlider } from "@/components/comparison-slider"
-import { EditComparison } from "@/components/edit-comparison"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { HeroSection } from "@/components/hero-section"
@@ -21,10 +19,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
-import { Sparkles, Wand2, ImageIcon, Zap, ArrowRight, CheckCircle2 } from "lucide-react"
+import { Sparkles, ArrowLeft, Wand2 } from "lucide-react"
 
 export type AppState = "upload" | "processing" | "comparison"
-export type AppMode = "restore" | "edit"
 
 export interface ImageData {
   file: File
@@ -33,12 +30,10 @@ export interface ImageData {
   source?: "upload" | "camera"
 }
 
-export default function Home() {
+export default function RestorePage() {
   const [appState, setAppState] = useState<AppState>("upload")
-  const [appMode, setAppMode] = useState<AppMode>("restore")
   const [originalImage, setOriginalImage] = useState<ImageData | null>(null)
-  const [processedImage, setProcessedImage] = useState<string | null>(null)
-  const [editPrompt, setEditPrompt] = useState<string>("")
+  const [restoredImage, setRestoredImage] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
   const [backgroundGradient, setBackgroundGradient] = useState<string>("")
   const [isLimitReached, setIsLimitReached] = useState(false)
@@ -59,7 +54,7 @@ export default function Home() {
     }
   }
 
-  const handleProcess = async (prompt?: string) => {
+  const handleRestore = async () => {
     if (!originalImage) {
       toast({
         variant: "destructive",
@@ -69,19 +64,9 @@ export default function Home() {
       return
     }
 
-    if (appMode === "edit" && (!prompt || prompt.trim().length === 0)) {
-      toast({
-        variant: "destructive",
-        title: "Prompt required",
-        description: "Please enter a prompt for image editing.",
-      })
-      return
-    }
-
     setAppState("processing")
     setProgress(0)
-    setProcessedImage(null)
-    if (prompt) setEditPrompt(prompt)
+    setRestoredImage(null)
 
     // Simulate progress
     const progressInterval = setInterval(() => {
@@ -95,15 +80,12 @@ export default function Home() {
     }, 800)
 
     try {
-      const endpoint = appMode === "restore" ? "/api/restore" : "/api/edit"
-      const requestBody = appMode === "restore" 
-        ? { inputImage: originalImage.dataUrl }
-        : { inputImage: originalImage.dataUrl, prompt: prompt }
-
-      const res = await fetch(endpoint, {
+      const res = await fetch("/api/restore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          inputImage: originalImage.dataUrl,
+        }),
       })
 
       const data = await res.json()
@@ -118,22 +100,22 @@ export default function Home() {
       }
 
       setProgress(100)
-      setProcessedImage(data.output)
+      setRestoredImage(data.output)
 
-      // Update gradient with processed image colors
+      // Update gradient with restored image colors
       try {
-        const processedColors = await extractColors(data.output)
-        const enhancedGradient = `linear-gradient(135deg, ${processedColors[0]}20, ${processedColors[1]}15, ${processedColors[2]}10)`
+        const restoredColors = await extractColors(data.output)
+        const enhancedGradient = `linear-gradient(135deg, ${restoredColors[0]}20, ${restoredColors[1]}15, ${restoredColors[2]}10)`
         setBackgroundGradient(enhancedGradient)
       } catch (error) {
-        console.error("Error extracting processed image colors:", error)
+        console.error("Error extracting restored image colors:", error)
       }
 
       setTimeout(() => {
         setAppState("comparison")
         toast({
-          title: `${appMode === "restore" ? "Restoration" : "Edit"} complete`,
-          description: `Your image has been successfully ${appMode === "restore" ? "restored" : "edited"}.`,
+          title: "Restoration complete",
+          description: "Your image has been successfully restored.",
         })
       }, 1000)
     } catch (err) {
@@ -143,7 +125,7 @@ export default function Home() {
       if (!isLimitReached) {
         toast({
           variant: "destructive",
-          title: `${appMode === "restore" ? "Restoration" : "Edit"} failed`,
+          title: "Restoration failed",
           description: err instanceof Error ? err.message : "An unknown error occurred.",
         })
       }
@@ -155,8 +137,7 @@ export default function Home() {
   const handleReset = () => {
     setAppState("upload")
     setOriginalImage(null)
-    setProcessedImage(null)
-    setEditPrompt("")
+    setRestoredImage(null)
     setProgress(0)
     setBackgroundGradient("")
   }
@@ -201,84 +182,41 @@ export default function Home() {
     return () => window.removeEventListener("resize", setVh)
   }, [])
 
-  const ModeSelector = () => (
+  const RestoreHeader = () => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="w-full max-w-2xl mx-auto mb-8"
+      className="text-center space-y-4 mb-8"
     >
-      <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-lg">
-        <CardHeader className="text-center pb-4">
-          <CardTitle className="text-2xl">Choose Your AI Action</CardTitle>
-          <CardDescription>
-            Select whether you want to restore or edit your image
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="relative cursor-pointer rounded-lg border-2 transition-all duration-200 border-border hover:border-primary/50 bg-background/50 hover:bg-primary/5"
-              onClick={() => router.push('/restore')}
-            >
-              <div className="p-6 text-center space-y-3">
-                <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center bg-muted hover:bg-primary/20 transition-colors">
-                  <Sparkles className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Restore Image</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Fix old, damaged, or faded photos
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1 justify-center">
-                  <Badge variant="secondary" className="text-xs">AI-Powered</Badge>
-                  <Badge variant="secondary" className="text-xs">Auto-Fix</Badge>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="relative cursor-pointer rounded-lg border-2 transition-all duration-200 border-border hover:border-primary/50 bg-background/50 hover:bg-primary/5"
-              onClick={() => router.push('/edit')}
-            >
-              <div className="p-6 text-center space-y-3">
-                <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center bg-muted hover:bg-primary/20 transition-colors">
-                  <Wand2 className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Edit Image</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Transform images with AI prompts
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1 justify-center">
-                  <Badge variant="secondary" className="text-xs">Creative</Badge>
-                  <Badge variant="secondary" className="text-xs">Prompt-Based</Badge>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="flex justify-center pt-2"
-          >
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Zap className="h-4 w-4" />
-              <span>Choose your transformation type</span>
-              <ArrowRight className="h-4 w-4" />
-              <span>Professional results</span>
-            </div>
-          </motion.div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center gap-3 mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push('/')}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Home
+        </Button>
+      </div>
+      
+      <div className="flex items-center justify-center gap-3">
+        <div className="p-3 rounded-full bg-primary/10">
+          <Sparkles className="h-6 w-6 text-primary" />
+        </div>
+        <h1 className="text-3xl md:text-4xl font-bold">AI Image Restoration</h1>
+      </div>
+      
+      <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+        Transform your old, damaged, or faded photos into stunning, high-quality images using advanced AI technology.
+      </p>
+      
+      <div className="flex flex-wrap gap-2 justify-center">
+        <Badge variant="secondary" className="text-sm">AI-Powered</Badge>
+        <Badge variant="secondary" className="text-sm">Instant Processing</Badge>
+        <Badge variant="secondary" className="text-sm">Professional Quality</Badge>
+      </div>
     </motion.div>
   )
 
@@ -289,8 +227,8 @@ export default function Home() {
           <AlertDialogHeader>
             <AlertDialogTitle>Anonymous Limit Reached</AlertDialogTitle>
             <AlertDialogDescription>
-              You've reached the maximum of 2 {appMode === "restore" ? "restorations" : "edits"} allowed for anonymous users. 
-              Sign in to {appMode === "restore" ? "restore" : "edit"} unlimited images and access your history.
+              You've reached the maximum of 2 restorations allowed for anonymous users. 
+              Sign in to restore unlimited images and access your restoration history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -320,18 +258,49 @@ export default function Home() {
                     exit={{ opacity: 0 }}
                     className="space-y-8 md:space-y-12"
                   >
-                    <HeroSection isMobile={isMobile} />
-                    <ModeSelector />
+                    <RestoreHeader />
                     <ImageUpload
                       onImageUpload={handleImageUpload}
-                      onRestore={() => handleProcess()}
+                      onRestore={handleRestore}
                       image={originalImage}
                       onReset={handleReset}
                       isMobile={isMobile}
-                      mode={appMode}
+                      mode="restore"
                     />
                     <ExampleImages onSelectExample={handleImageUpload} isMobile={isMobile} />
-                    <FeaturesSection />
+                    
+                    {/* Tips specific to restoration */}
+                    <motion.div 
+                      className="grid grid-cols-1 md:grid-cols-3 gap-4"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.5 }}
+                    >
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium">Best photo types</CardTitle>
+                        </CardHeader>
+                        <CardContent className="text-sm">
+                          <p className="text-muted-foreground">Old, faded, scratched, or damaged portraits work best with our restoration model.</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium">File specifications</CardTitle>
+                        </CardHeader>
+                        <CardContent className="text-sm">
+                          <p className="text-muted-foreground">For best results, use JPG or PNG files under 10MB with clear subjects.</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium">Processing time</CardTitle>
+                        </CardHeader>
+                        <CardContent className="text-sm">
+                          <p className="text-muted-foreground">Most images are processed in 5-10 seconds depending on complexity.</p>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
                   </motion.div>
                 )}
 
@@ -341,51 +310,24 @@ export default function Home() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
-                    {appMode === "restore" ? (
-                      <RestorationOverlay image={originalImage} progress={progress} />
-                    ) : (
-                      <EditingOverlay
-                        image={originalImage}
-                        progress={progress}
-                        onEdit={handleProcess}
-                        onReset={handleReset}
-                        isProcessing={true}
-                        isMobile={isMobile}
-                      />
-                    )}
+                    <RestorationOverlay image={originalImage} progress={progress} />
                   </motion.div>
                 )}
 
-                {appState === "comparison" && originalImage && processedImage && (
+                {appState === "comparison" && originalImage && restoredImage && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
-                    {appMode === "restore" ? (
-                      <ComparisonSlider
-                        originalImage={originalImage.dataUrl}
-                        restoredImage={processedImage}
-                        fileName={originalImage.file.name}
-                        onReset={handleReset}
-                        onEdit={handleEdit}
-                        isMobile={isMobile}
-                      />
-                    ) : (
-                      <EditComparison
-                        originalImage={originalImage.dataUrl}
-                        editedImage={processedImage}
-                        prompt={editPrompt}
-                        fileName={originalImage.file.name}
-                        onReset={handleReset}
-                        onNewEdit={() => {
-                          setAppState("upload")
-                          setProcessedImage(null)
-                          setEditPrompt("")
-                        }}
-                        isMobile={isMobile}
-                      />
-                    )}
+                    <ComparisonSlider
+                      originalImage={originalImage.dataUrl}
+                      restoredImage={restoredImage}
+                      fileName={originalImage.file.name}
+                      onReset={handleReset}
+                      onEdit={handleEdit}
+                      isMobile={isMobile}
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -398,4 +340,4 @@ export default function Home() {
       </div>
     </>
   )
-}
+} 
